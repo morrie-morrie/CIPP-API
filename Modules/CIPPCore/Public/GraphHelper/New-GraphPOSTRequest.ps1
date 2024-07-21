@@ -1,5 +1,5 @@
 
-function New-GraphPOSTRequest ($uri, $tenantid, $body, $type, $scope, $AsApp, $NoAuthCheck, $skipTokenCache, $AddedHeaders, $contentType) {
+function New-GraphPOSTRequest ($uri, $tenantid, $body, $type, $scope, $AsApp, $NoAuthCheck, $skipTokenCache, $AddedHeaders, $contentType, $IgnoreErrors = $false, $returnHeaders = $false) {
     <#
     .FUNCTIONALITY
     Internal
@@ -20,22 +20,21 @@ function New-GraphPOSTRequest ($uri, $tenantid, $body, $type, $scope, $AsApp, $N
             $contentType = 'application/json; charset=utf-8'
         }
         try {
-            $ReturnedData = (Invoke-RestMethod -Uri $($uri) -Method $TYPE -Body $body -Headers $headers -ContentType $contentType)
+            $ReturnedData = (Invoke-RestMethod -Uri $($uri) -Method $TYPE -Body $body -Headers $headers -ContentType $contentType -SkipHttpErrorCheck:$IgnoreErrors -ResponseHeadersVariable responseHeaders)
         } catch {
-            $Message = ($_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue).error
-            if ($Message.innerError) { $Message = $Message.Innererror.Message } else { $Message = $Message.Message.Error }
-            if ($Message -eq $null) { 
-                try {
-                    $Message = ($_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue).message
-                } catch {
-                    $Message = $($_.Exception.Message) 
-                }
+            $Message = if ($_.ErrorDetails.Message) {
+                Get-NormalizedError -Message $_.ErrorDetails.Message
+            } else {
+                $_.Exception.message
             }
             throw $Message
         }
-        return $ReturnedData
+        if ($returnHeaders) {
+            return $responseHeaders
+        } else {
+            return $ReturnedData
+        }
     } else {
         Write-Error 'Not allowed. You cannot manage your own tenant or tenants not under your scope'
-
     }
 }
