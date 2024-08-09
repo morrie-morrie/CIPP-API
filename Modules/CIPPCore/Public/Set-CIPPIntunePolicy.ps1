@@ -13,6 +13,10 @@ function Set-CIPPIntunePolicy {
         switch ($TemplateType) {
             'AppProtection' {
                 $TemplateType = ($RawJSON | ConvertFrom-Json).'@odata.type' -replace '#microsoft.graph.', ''
+                $PolicyFile = $RawJSON | ConvertFrom-Json
+                $Null = $PolicyFile | Add-Member -MemberType NoteProperty -Name 'description' -Value $description -Force
+                $null = $PolicyFile | Add-Member -MemberType NoteProperty -Name 'displayName' -Value $displayname -Force
+                $RawJSON = ConvertTo-Json -InputObject $PolicyFile -Depth 20
                 $TemplateTypeURL = if ($TemplateType -eq 'windowsInformationProtectionPolicy') { 'windowsInformationProtectionPolicies' } else { "$($TemplateType)s" }
                 $CheckExististing = New-GraphGETRequest -uri "https://graph.microsoft.com/beta/deviceAppManagement/$TemplateTypeURL" -tenantid $tenantFilter
                 if ($displayname -in $CheckExististing.displayName) {
@@ -72,7 +76,7 @@ function Set-CIPPIntunePolicy {
                 $null = $PolicyFile | Add-Member -MemberType NoteProperty -Name 'displayName' -Value $displayname -Force
                 $RawJSON = ConvertTo-Json -InputObject $PolicyFile -Depth 20
                 $CheckExististing = New-GraphGETRequest -uri "https://graph.microsoft.com/beta/deviceManagement/$TemplateTypeURL" -tenantid $tenantFilter
-                if ($PolicyName -in $PolicyFile.displayName) {
+                if ($PolicyFile.displayName -in $CheckExististing.displayName) {
                     $PostType = 'edited'
                     $ExistingID = $CheckExististing | Where-Object -Property displayName -EQ $PolicyName
                     $CreateRequest = New-GraphPOSTRequest -uri "https://graph.microsoft.com/beta/deviceManagement/$TemplateTypeURL/$($ExistingID.Id)" -tenantid $tenantFilter -type PATCH -body $RawJSON
